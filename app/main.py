@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from app.schemas.image import ImageData
-# from app.models.detection import get_bounding_boxes
 from app.models.ocr import ocr_on_bboxes
 from app.utils.decode import decode_image
 from app.utils.image_processing import resize_and_pad_image_opencv
@@ -36,6 +35,7 @@ model_ocr.to(device)
 @app.post("/detect_and_ocr/")
 async def detect_and_ocr(data: ImageData):
     try:
+        predicted_texts = []
         # Convert base64 image to PIL Image
         image_data = base64.b64decode(data.image_b64)
         # Convert bytes to a NumPy array
@@ -43,11 +43,11 @@ async def detect_and_ocr(data: ImageData):
 
         # Decode the array into an image (OpenCV format)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        # image = Image.open(BytesIO(image_data))
+
         results = model(image, task='detect',save=True) 
-        # Iterate through detections and crop each object
+
         crops = []
-        for detection in results[0].boxes.xyxy:  # If using ultralytics, boxes.xyxy contains bounding box coordinates
+        for detection in results[0].boxes.xyxy:  
             x_min, y_min, x_max, y_max = map(int, detection)  # Convert coordinates to integers
             crop = image[y_min:y_max, x_min:x_max]  # Crop the region from the original image
             crops.append(crop)
@@ -59,18 +59,9 @@ async def detect_and_ocr(data: ImageData):
 
             # Decode the output to text
             predicted_text = processor.batch_decode(output_ids, skip_special_tokens=True)[0]
-            print(predicted_text)
-            # print(f"Image Path: {row['image']}, Text: {row['text']}", "Predicted Text:", predicted_text)
-        # Step 1: Detect bounding boxes
-        # bounding_boxes = get_bounding_boxes(image)
+            predicted_texts.append(predicted_text)
         
-        # if len(bounding_boxes) == 0:
-        #     raise HTTPException(status_code=400, detail="No objects detected in the image.")
-        
-        # # Step 2: OCR processing on bounding boxes
-        # ocr_results = ocr_on_bboxes(image, bounding_boxes)
-        
-        return {"bounding_boxes": 'bounding_boxes', "ocr_results": 'ocr_results'}
+        return {"bounding_boxes": 'bounding_boxes', "ocr_results": 'ocr_results', "predicted_texts": predicted_texts}
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
