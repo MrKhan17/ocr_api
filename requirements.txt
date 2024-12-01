@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pillow
+torch
+numpy
+ultralytics
+#trocr
+transformers
+datasets
+jiwer
+mltu
+huggingface_hub
+evaluate
